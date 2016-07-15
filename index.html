@@ -314,9 +314,10 @@
         with <a>video monitor</a> or <a>video processor</a>.
       </p>
       <p>
-        An <dfn>output frame</dfn> is an <a>ImageBitmap</a> object assigned to
-        the <a>outputImageBitmap</a> attribute of the
-        <a>VideoProcessorEvent</a> dispatched at <a>video processor</a>.
+        An <dfn>output frame</dfn> is an <a>ImageBitmap</a> object which is the
+        resolved value of the argument passed to the <a>setOutputImageBitmap</a>
+        method of the <a>VideoProcessorEvent</a> dispatched at
+        <a>video processor</a>.
       </p>
       <p>
         The <dfn>input media stream track</dfn> is the <a>MediaStreamTrack</a>
@@ -467,8 +468,7 @@
           created <a>VideoMonitorEvent</a> object at each <a>video monitor</a>
           that is <a>monitoring</a>.
           </li>
-          <li>If <var>e</var> is <a>videoprocessorchange</a>, initialize the
-          <a>outputImageBitmap</a> attribute to null, and dispatch the newly
+          <li>If <var>e</var> is <a>videoprocessorchange</a>, dispatch the newly
           created <a>VideoProcessorEvent</a> object at each <var>target</var>.
           </li>
         </ol>
@@ -537,38 +537,60 @@
         <a>videoprocessorchange</a> events:
       </p>
       <pre class="idl">
-          [Constructor(DOMString type, optional VideoProcessorEventInit videoProcessorEventInitDict)]
+          [Constructor(DOMString type)]
           interface VideoProcessorEvent : VideoMonitorEvent {
-                          attribute ImageBitmap? outputImageBitmap;
-          };
-
-          dictionary VideoProcessorEventInit : VideoMonitorEventInit {
-              required ImageBitmap? outputImageBitmap;
+              void setOutputImageBitmap(Promise&lt;ImageBitmap&gt; outputImageBitmap);
           };
         </pre>
       <div>
         <p>
-          The <dfn><code>outputImageBitmap</code></dfn> attribute must return
-          the value it was initialized to. When the object is created, this
-          attribute must be initialized to null. It represents the
-          <a>ImageBitmap</a> object which on setting, must cause the user agent
-          to run the following steps:
+          The <code><dfn>setOutputImageBitmap</dfn>()</code> method, when
+          invoked, must run these steps:
         </p>
+        <ol>
+          <li>
+            Let <var>promise</var> be the be the first method argument.
+          </li>
+          <li>
+            Let <var>onFulfilled</var> be a new <code>function object</code>
+            whose behavior when invoked is as follows:
+            <ol>
+              <li>
+                Let <var>V</var> be the first argument to
+                <var>onFulfilled</var>.
+              </li>
+              <li>
+                Let <var>output bitmap</var> be the result of converting
+                <var>V</var> to an <code>ImageBitmap</code>.
+              </li>
+              <li>
+                Let <var>output media stream track</var> be the
+                <a>MediaStreamTrack</a> returned by the
+                <code><a>addVideoProcessor</a>()</code> method.
+              </li>
+              <li>
+                <!-- TODO: this should be defined better. -->
+                Set <var>output bitmap</var> as the <a>source</a> of the <var>output
+                media stream track</var>.
+              </li>
+            </ol>
+          </li>
+          <li>
+            Let <var>then</var> be the result of calling the internal
+            &#91;&#91;Get&#93;&#93; method of <var>promise</var> with property
+            name “then”.
+          </li>
+          <li>
+            If <var>then</var> is not
+            <a class="external" href="https://tc39.github.io/ecma262/#sec-iscallable">callable</a>,
+            then <code>throw AbortError</code>.</li>
+          <li>
+            Return the result of calling <var>then</var> with <var>promise</var>
+            as the <var>this</var> value and <var>onFulfilled</var> as its
+            argument.
+          </li>
+        </ol>
       </div>
-      <ol>
-        <li>Let <var>output bitmap</var> be the <a>ImageBitmap</a> object
-        assigned to the <a>outputImageBitmap</a> attribute.
-        </li>
-        <li>Let <var>output media stream track</var> be the
-        <a>MediaStreamTrack</a> returned by the
-        <code><a>addVideoProcessor</a>()</code> method.
-        </li>
-        <li>
-          <!-- TODO: this should be defined better. -->
-          Set <var>output bitmap</var> as the <a>source</a> of the <var>output
-          media stream track</var>.
-        </li>
-      </ol>
       <p>
         When a user agent is required to <dfn>fire a video processor
         event</dfn>, it must <a>fire a video event</a> named
@@ -1619,12 +1641,7 @@
                 var channelB = {offset:2, width:ywidth, height:yheight, dataType:"uint8", stride:ywith * 4, skip:3);
                 var channelA = {offset:3, width:ywidth, height:yheight, dataType:"uint8", stride:ywith * 4, skip:3);
                 var layout = [channelR, channelG, channelB, channelA];
-                var p = createImageBitmap(rgbaBuffer, 0, rgbaBufferLength, "RGBA32", layout);
-                p.then(function(bitmap) {
-                  event.outputImageBitmap = bitmap;
-                }).catch(function(ex) {
-                  console.log("Call createImageBitmap() failed. Error: " + ex);
-                });
+                evnet.setOutputImageBitmap(createImageBitmap(rgbaBuffer, 0, rgbaBufferLength, "RGBA32", layout));
               },
               function(ex) {
                 console.log("Call mapDataInto() failed. Error: " + ex);
